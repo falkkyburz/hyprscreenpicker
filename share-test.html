@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>getDisplayMedia single-call test</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, sans-serif;
+      background: #111318;
+      color: #eef1f7;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px;
+      display: grid;
+      gap: 20px;
+      max-width: 960px;
+    }
+
+    button {
+      width: fit-content;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 8px;
+      background: #7aa2ff;
+      color: #0b1020;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    video {
+      width: min(100%, 900px);
+      min-height: 260px;
+      border: 1px solid #2c3344;
+      border-radius: 12px;
+      background: #07080c;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      min-height: 180px;
+      overflow: auto;
+      border: 1px solid #2c3344;
+      border-radius: 12px;
+      background: #07080c;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>getDisplayMedia single-call test</h1>
+  <p>This page calls <code>navigator.mediaDevices.getDisplayMedia()</code> exactly once per button click.</p>
+  <button id="start">Start screen share</button>
+  <video id="preview" autoplay muted playsinline></video>
+  <pre id="log"></pre>
+
+  <script>
+    const start = document.querySelector('#start');
+    const preview = document.querySelector('#preview');
+    const logOutput = document.querySelector('#log');
+    let requestCount = 0;
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      logOutput.textContent += `[${time}] ${message}\n`;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    start.addEventListener('click', async () => {
+      requestCount += 1;
+      start.disabled = true;
+      log(`request ${requestCount}: calling getDisplayMedia once`);
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: false,
+        });
+
+        preview.srcObject = stream;
+        const tracks = stream.getVideoTracks();
+        log(`request ${requestCount}: received stream with ${tracks.length} video track(s)`);
+
+        for (const track of tracks) {
+          log(`track: label="${track.label}", readyState=${track.readyState}`);
+          track.addEventListener('ended', () => {
+            log(`track ended: label="${track.label}"`);
+          });
+        }
+      } catch (error) {
+        log(`request ${requestCount}: ${error.name}: ${error.message}`);
+      } finally {
+        start.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

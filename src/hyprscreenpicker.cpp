@@ -287,14 +287,16 @@ std::string windowLabel(const WindowEntry& window) {
 
 int preferredListScrollHeight(size_t rowCount) {
     constexpr int ROW_HEIGHT          = 24;
+    constexpr int ROW_GAP             = 2;
     constexpr int EMPTY_NOTE_HEIGHT   = 42;
-    constexpr int SCROLL_AREA_PADDING = 10;
-    constexpr int MAX_VISIBLE_ROWS    = 10;
+    constexpr int SCROLL_AREA_PADDING = 4;
+    constexpr int MAX_VISIBLE_ROWS    = 9;
 
     if (rowCount == 0)
         return EMPTY_NOTE_HEIGHT;
 
-    return static_cast<int>(std::min(rowCount, static_cast<size_t>(MAX_VISIBLE_ROWS))) * ROW_HEIGHT + SCROLL_AREA_PADDING;
+    const auto visibleRows = static_cast<int>(std::min(rowCount, static_cast<size_t>(MAX_VISIBLE_ROWS)));
+    return visibleRows * ROW_HEIGHT + std::max(0, visibleRows - 1) * ROW_GAP + SCROLL_AREA_PADDING;
 }
 
 int preferredWindowHeight(size_t monitorCount, size_t windowCount, bool regionAvailable) {
@@ -396,6 +398,20 @@ SP<IWindow>          g_window;
 SP<CCheckboxElement> g_allowToken;
 
 constexpr const char* SETTINGS_PATH = "/tmp/hypr/hypr-picker.conf";
+constexpr const char* LOG_ENV       = "HYPRSCREENPICKER_LOG";
+
+void debugLog(const std::string& message) {
+    const char* path = std::getenv(LOG_ENV);
+    if (!path || !*path)
+        return;
+
+    std::ofstream file{path, std::ios::app};
+    if (!file)
+        return;
+
+    const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    file << std::put_time(std::localtime(&now), "%F %T") << " " << message << '\n';
+}
 
 std::string runCommand(const char* command) {
     std::array<char, 4096> buffer{};
@@ -427,6 +443,7 @@ bool allowToken() {
 }
 
 [[noreturn]] void finishWithSelection(const std::string& selection) {
+    debugLog(std::format("selection {}", HyprPicker::trim(selection)));
     writeSettings();
     std::cout << selection;
     std::cout.flush();
@@ -436,6 +453,7 @@ bool allowToken() {
 }
 
 [[noreturn]] void finishWithoutSelection() {
+    debugLog("cancel");
     writeSettings();
     std::cout.flush();
     std::_Exit(1);
@@ -482,6 +500,11 @@ SP<IElement> note(std::string&& label) {
 }
 
 SP<CButtonElement> selectionButton(std::string&& label, std::function<void(SP<CButtonElement>)>&& onClick) {
+    constexpr size_t MAX_BUTTON_LABEL_LENGTH = 40;
+
+    if (label.size() > MAX_BUTTON_LABEL_LENGTH)
+        label = label.substr(0, MAX_BUTTON_LABEL_LENGTH - 3) + "...";
+
     auto button = CButtonBuilder::begin()
                       ->label(std::move(label))
                       ->alignText(HT_FONT_ALIGN_CENTER)
@@ -493,9 +516,10 @@ SP<CButtonElement> selectionButton(std::string&& label, std::function<void(SP<CB
 }
 
 SP<CColumnLayoutElement> addListPane(SP<CColumnLayoutElement> layout, size_t rowCount) {
-    constexpr float LIST_HEIGHT = 240.F;
+    constexpr float  LIST_HEIGHT      = 240.F;
+    constexpr size_t MAX_VISIBLE_ROWS = 9;
 
-    auto scroll = CScrollAreaBuilder::begin()->scrollY(rowCount > 10)->size({CDynamicSize::HT_SIZE_PERCENT, CDynamicSize::HT_SIZE_ABSOLUTE, {1.F, LIST_HEIGHT}})->commence();
+    auto scroll = CScrollAreaBuilder::begin()->scrollY(rowCount > MAX_VISIBLE_ROWS)->size({CDynamicSize::HT_SIZE_PERCENT, CDynamicSize::HT_SIZE_ABSOLUTE, {1.F, LIST_HEIGHT}})->commence();
     layout->addChild(scroll);
 
     auto content = CColumnLayoutBuilder::begin()->gap(2)->size({CDynamicSize::HT_SIZE_PERCENT, CDynamicSize::HT_SIZE_AUTO, {1.F, 1.F}})->commence();
@@ -599,6 +623,7 @@ int main(int argc, char** argv) {
 
     const auto monitors = getMonitors();
     const auto windows  = HyprPicker::parseWindowList(std::getenv("XDPH_WINDOW_SHARING_LIST"));
+    debugLog(std::format("start monitors={} windows={} allowTokenByDefault={}", monitors.size(), windows.size(), allowTokenByDefault));
     const int width     = 810;
     const int height    = 420;
 
