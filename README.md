@@ -20,7 +20,9 @@ Requires CMake, a C++23 compiler, `pkg-config`, HyprToolkit, and its runtime dep
 
 ## xdg-desktop-portal-hyprland
 
-Set `custom_picker_binary` in your xdph config:
+Set `custom_picker_binary` in your xdph config. By default, XDPH reads
+`$XDG_CONFIG_HOME/hypr/xdph.conf`, or `~/.config/hypr/xdph.conf` when
+`XDG_CONFIG_HOME` is unset:
 
 ```ini
 screencopy {
