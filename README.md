@@ -26,7 +26,7 @@ Set `custom_picker_binary` in your xdph config. By default, XDPH reads
 
 ```ini
 screencopy {
-    custom_picker_binary = /home/falk/Work/hyprscreenpicker/build/hyprscreenpicker
+    custom_picker_binary = <path to hprpicker>/hyprscreenpicker
 }
 ```
 
